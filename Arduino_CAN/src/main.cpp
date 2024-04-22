@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <CAN.h>  
 
+//! Connect to the Raspberry Serial
+
 
 void setup() {
   Serial.begin(9600);
@@ -16,6 +18,9 @@ void loop() {
     delay(count);
   }
 }
+
+
+//! Connect to the can bus
 /*
 void setup() {
 
