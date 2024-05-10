@@ -1,0 +1,25 @@
+item {
+  id: 1
+  name: 'close_left'
+}
+
+item {
+  id: 2
+  name: 'close_right'
+}
+
+item {
+  id: 3
+  name: 'face'
+}
+
+item {
+  id: 4
+  name: 'not_yawn'
+}
+
+item {
+  id: 5
+  name: 'yawn'
+}
+

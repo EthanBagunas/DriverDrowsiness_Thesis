@@ -1,16 +1,18 @@
 //==================================================================================//
 
-#include <CAN.h>
+#include <CAN.h>  
 
-
-//==================================================================================//
-
+const int button_pin = 8;
+const int buzz_pin = 9;
+int pos =0;
+int val;
+int count=0;
 void setup() {
 
-  Serial.begin (9600);
-  while (!Serial);
+  Serial.begin(115200);
+   while (!Serial);
   delay (1000);
-  
+
   // start the CAN bus at 500 kbps
   if (!CAN.begin (500E3)) {
     Serial.println ("Starting CAN failed!");
@@ -24,66 +26,53 @@ void setup() {
 
 void canSender(int& mcuid) {
   // send packet: id is 11 bits, packet can contain up to 8 bytes of data
+  int id;
   if (mcuid == 1) {
-  int id = 0x12;    
+  id = 0x12;    
   Serial.print ("Sending packet ... ");
   
   CAN.beginPacket (id);  //sets the ID and clears the transmit buffer
   // CAN.beginExtendedPacket(0xabcdef);
-  CAN.write ('1'); //write data to buffer. data is not sent until endPacket() is called.
-  CAN.write ('2');
-  CAN.write ('3');
-  CAN.write ('4');
-  CAN.write ('5');
-  CAN.write ('6');
-  CAN.write ('7');
-  CAN.write ('8');
+  CAN.write ('Y');
+  CAN.write ('A');
+  CAN.write ('W');
+  CAN.write ('N');
   CAN.endPacket();
-
   //RTR packet with a requested data length
   CAN.beginPacket (0x12, 3, true);
   CAN.endPacket();
-
   Serial.println (id,HEX);
-  } else {
-  int id = 0x11;  
+  } 
+  
+  else{
+  id = 0x11;  
   Serial.print ("Sending packet ... ");
   CAN.beginPacket (id);  //sets the ID and clears the transmit buffer
   // CAN.beginExtendedPacket(0xabcdef);
-  CAN.write ('N'); //write data to buffer. data is not sent until endPacket() is called.
+  CAN.write ('C'); //write data to buffer. data is not sent until endPacket() is called.
+  CAN.write ('L');
   CAN.write ('O');
-  CAN.write ('T');
-  CAN.write ('-');
-  CAN.write ('M');
-  CAN.write ('I');
-  CAN.write ('N');
+  CAN.write ('S');
   CAN.write ('E');
   CAN.endPacket();
-
   //RTR packet with a requested data length
   CAN.beginPacket (0x11, 3, true);
   CAN.endPacket();
-
   Serial.println (id, HEX);
-
-
   }
   delay (1000);
 }
-
-//==================================================================================//
-
-
-
-
-void loop() {
-  Serial.println("Please enter something:");
-
-  while(Serial.available() ==0) {
-    
-  }
-
-  int input = Serial.parseInt();
-  Serial.println(input);
-  canSender(input);
+void loop() 
+{
+  int data;
+  if (Serial.available() > 0) {
+    String rcv = Serial.readStringUntil('\n');
+    Serial.print("Data Received: ");
+    Serial.println(rcv);
+    data= rcv.toInt();
+    canSender(data);
+  }     
 }
+
+
+

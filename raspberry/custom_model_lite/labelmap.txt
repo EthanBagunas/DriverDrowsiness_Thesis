@@ -1,0 +1,5 @@
+close_left
+close_right
+face
+not_yawn
+yawn

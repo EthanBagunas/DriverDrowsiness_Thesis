@@ -3,8 +3,10 @@
 #include <CAN.h>
 #include <Arduino.h>
 
-#define TX_GPIO_NUM   21  // Connects to CTX
-#define RX_GPIO_NUM   22 // Connects to CRX
+#define TX_GPIO_NUM   0  // Connects to CTX
+#define RX_GPIO_NUM   4 // Connects to CRX
+
+const int buzz_pin= 17;
 
 //==================================================================================//
 
@@ -15,6 +17,8 @@ void setup() {
 
   CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
   Serial.println ("CAN Receiver/Receiver");
+
+  pinMode(buzz_pin, OUTPUT);
 
   // Set the pins
 
@@ -27,6 +31,11 @@ void setup() {
     Serial.println ("CAN Initialized");
   }
 }
+void buzz() {
+  digitalWrite(buzz_pin, HIGH);
+  delay(5000);
+  digitalWrite(buzz_pin, LOW);
+} 
 
 void canReceiver() {
   // try to parse packet
@@ -48,7 +57,8 @@ void canReceiver() {
     Serial.print ("packet with id 0x");
     Serial.print (CAN.packetId(), HEX);
 
-    CAN.filter(0x12);
+    CAN.filter(0x11);
+    buzz();
 
     if (CAN.packetRtr()) {
       Serial.print (" and requested length ");
