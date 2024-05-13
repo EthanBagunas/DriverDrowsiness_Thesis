@@ -1,47 +1,32 @@
 //==================================================================================//
-
-#include <CAN.h>
 #include <Arduino.h>
+#include <CAN.h>
 
-#define TX_GPIO_NUM   0  // Connects to CTX
-#define RX_GPIO_NUM   4 // Connects to CRX
+#define TX_GPIO_NUM   17  // Connects to CTX
+#define RX_GPIO_NUM   16 // Connects to CRX
 
-const int buzz_pin= 17;
-
+const int buzz_pin= 18;
+const int blink_pin= 22;
+int count=0;
 //==================================================================================//
 
-void setup() {
-  Serial.begin(9600);
-  while (!Serial);
-  delay (1000);
 
-  CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
-  Serial.println ("CAN Receiver/Receiver");
-
-  pinMode(buzz_pin, OUTPUT);
-
-  // Set the pins
-
-  // start the CAN bus at 500 kbps
-  if (!CAN.begin (500E3)) {
-    Serial.println ("Starting CAN failed!");
-    while (1);
-  }
-  else {
-    Serial.println ("CAN Initialized");
-  }
-}
 void buzz() {
   digitalWrite(buzz_pin, HIGH);
-  delay(5000);
+  for (int i=0; i<4; i++) {
+    digitalWrite(blink_pin,HIGH);
+    delay(1000);
+    digitalWrite(blink_pin,LOW);
+    delay(1000);
+  }
   digitalWrite(buzz_pin, LOW);
-} 
-
+}
 void canReceiver() {
   // try to parse packet
   int packetSize = CAN.parsePacket();
 
   if (packetSize) {
+
     // received a packet
     Serial.print ("Received ");
 
@@ -53,11 +38,9 @@ void canReceiver() {
       // Remote transmission request, packet contains no data
       Serial.print ("RTR ");
     }
-
+    
     Serial.print ("packet with id 0x");
     Serial.print (CAN.packetId(), HEX);
-
-    CAN.filter(0x11);
     buzz();
 
     if (CAN.packetRtr()) {
@@ -79,6 +62,32 @@ void canReceiver() {
   }
 }
 
+
+void setup() {
+  
+  Serial.begin(9600);
+  while (!Serial);
+  delay (1000);
+
+  CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
+  Serial.println ("CAN Receiver/Receiver");
+  
+
+  // Set the pins
+  pinMode(buzz_pin, OUTPUT);
+  pinMode(blink_pin, OUTPUT);
+  
+  // start the CAN bus at 500 kbps
+  if (!CAN.begin (500E3)) {
+    Serial.println ("Starting CAN failed!");
+    while (1);
+  }
+  else {
+    Serial.println ("CAN Initialized");
+    CAN.filter(0x11);
+  }
+}
+// put function definitions here:
 void loop() {
   canReceiver();
 }
