@@ -13,6 +13,8 @@ import time
 import threading
 import serial
 
+ser = serial.Serial('COM4', 9600, timeout=1)
+
 modelpath = 'detect.tflite'
 lblpath = 'labelmap.txt'
 min_conf = 0.50
@@ -23,8 +25,6 @@ input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 height = input_details[0]['shape'][1]
 width = input_details[0]['shape'][2]
-ser = serial.Serial('COM4', 9600, timeout=1)
-
 
 float_input = (input_details[0]['dtype'] == np.float32)
 
@@ -41,18 +41,9 @@ object_names = [
     "not_yawn",
     "yawn"
 ]
+detected_labels = {cls: False for cls in object_names}
 
 yawn_detected = False
-
-def sendYawn():
-    ser.reset_input_buffer()
-    count=0
-    while count < 2:
-        ser.write(b"1\n")
-        #line = ser.readline().decode('utf-8').rstrip()
-        #print(line)
-        time.sleep(1)
-        count+=1
 
 def count_seconds(seconds):
     global yawn_detected
@@ -74,21 +65,25 @@ def count_seconds(seconds):
     yawn_detected = False
 
 
-def sendClosed():
+
+# Function to handle yawn detection
+
+def sendClose():
     ser.reset_input_buffer()
     count=0
     while count < 2:
-        ser.write(b"5\n")
-        #line = ser.readline().decode('utf-8').rstrip()
-        #print(line)
+        ser.write(b"1\n")
         time.sleep(1)
         count+=1
 
 
-
-
-# Function to handle yawn detection
-
+def sendYawn():
+    ser.reset_input_buffer()
+    count=0
+    while count < 2:
+        ser.write(b"0\n")
+        time.sleep(1)
+        count+=1
 
 def handle_yawn_detection():
     global yawn_detected
@@ -105,11 +100,15 @@ def handle_yawn_detection():
 
 
 
-
+colorBox = (0, 0, 255)
 
 
 
 cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Use DirectShow backend
+
+#cap = cv2.VideoCapture('lexis.mp4')
+
+
 
 detector = FaceMeshDetector(maxFaces=1)
 plotY = LivePlot(640,360,[20,50])
@@ -132,20 +131,26 @@ eyes_closed = False
 
 
 
+
+mask = cv2.imread('mask.png')
+
 while True:
     ret, frame = cap.read()
-    frame, faces = detector.findFaceMesh(frame, draw=False)
+    imgRegion = cv2.bitwise_and(frame, mask)
+
     if not ret:
         print("Failed to capture frame from camera. Exiting...")
         break
 
     #ComputerVisionCode
+    imgRegion, faces = detector.findFaceMesh(imgRegion, draw=False)
 
     if faces:
+        colorBox = (0, 255, 0)
         face = faces[0]
-        for id, rid in zip(idList, RidList):
-            cv2.circle(frame, face[id], 5, (color), cv2.FILLED)
-            cv2.circle(frame, face[rid], 5, (Rcolor), cv2.FILLED)
+        #for id, rid in zip(idList, RidList):
+            #cv2.circle(frame, face[id], 5, (color), cv2.FILLED)
+            #cv2.circle(frame, face[rid], 5, (Rcolor), cv2.FILLED)
 
         # left
         leftUp = face[159]
@@ -154,8 +159,8 @@ while True:
         leftright = face[243]
         lengthVer, _ = detector.findDistance(leftUp, leftDown)
         lengthHor, _ = detector.findDistance(leftleft, leftright)
-        cv2.line(frame, leftUp, leftDown, (0, 200, 0), 3)
-        cv2.line(frame, leftleft, leftright, (0, 200, 0), 3)
+        #cv2.line(frame, leftUp, leftDown, (0, 200, 0), 3)
+        #cv2.line(frame, leftleft, leftright, (0, 200, 0), 3)
 
         # right
         rightUp = face[386]
@@ -164,8 +169,8 @@ while True:
         rightright = face[463]
         RlengthVer, _ = detector.findDistance(rightUp, rightDown)
         RlengthHor, _ = detector.findDistance(rightleft, rightright)
-        cv2.line(frame, rightUp, rightDown, (0, 200, 0), 3)
-        cv2.line(frame, rightleft, rightright, (0, 200, 0), 3)
+        #cv2.line(frame, rightUp, rightDown, (0, 200, 0), 3)
+        #cv2.line(frame, rightleft, rightright, (0, 200, 0), 3)
 
         Lratio = (lengthVer / lengthHor) * 100
         Rratio = (RlengthVer / RlengthHor) * 100
@@ -202,15 +207,18 @@ while True:
         if ratioAvg < 35 and RratioAvg < 35:
             closed_eye_timer += 1
             if closed_eye_timer >= closed_eye_duration * 25 and not eyes_closed:  # 25 frames per second
-                sendClosed()
+                sendClose()
                 print("Both eyes closed")
                 eyes_closed = True
         else:
             closed_eye_timer = 0
             eyes_closed = False
 
+    else:
+     colorBox = (0,0,255)
+
     #TensorFlow
-    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    image_rgb = cv2.cvtColor(imgRegion, cv2.COLOR_BGR2RGB)
     imH, imW, _ = frame.shape
     image_resized = cv2.resize(image_rgb, (width, height))
     input_data = np.expand_dims(image_resized, axis=0)
@@ -221,6 +229,7 @@ while True:
     # Perform the actual detection by running the model with the image as input
     interpreter.set_tensor(input_details[0]['index'], input_data)
     interpreter.invoke()
+
     boxes = interpreter.get_tensor(output_details[1]['index'])[0]  # Bounding box coordinates of detected objects
     classes = interpreter.get_tensor(output_details[3]['index'])[0]  # Class index of detected objects
     scores = interpreter.get_tensor(output_details[0]['index'])[0]  # Confidence of detected objects
@@ -229,6 +238,11 @@ while True:
 
     for i in range(len(scores)):
         if ((scores[i] > min_conf) and (scores[i] <= 1.0)):
+            object_name = object_names[int(classes[i])]  # Look up object name from "labels" array using class index
+
+            if object_name in ['close_left', 'close_right']:
+                continue  # Skip processing close_left and close_right
+
             # Get bounding box coordinates and draw box
             # Interpreter can return coordinates that are outside of image dimensions, need to force them to be within image using max() and min()
             ymin = int(max(1, (boxes[i][0] * imH)))
@@ -237,15 +251,15 @@ while True:
             xmax = int(min(imW, (boxes[i][3] * imW)))
             cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (10, 255, 0), 2)
             # Draw label
-            object_name = object_names[int(classes[i])]  # Look up object name from "labels" array using class index
 
             if object_name == 'yawn' and not yawn_detected:
                 threading.Thread(target=handle_yawn_detection).start()
             elif object_name == 'not_yawn':
                 yawn_detected = False
-
-
-
+            elif object_name == 'face':
+                colorBox = (0, 255, 0)
+            else:
+                colorBox = (0, 0, 255)  # Change colorBox to blue when object detected is not a face
 
             label = '%s: %d%%' % (object_name, int(scores[i] * 100))  # Example: 'person: 72%'
             labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)  # Get font size
@@ -257,6 +271,7 @@ while True:
                         2)  # Draw label text
             detections.append([object_name, scores[i], xmin, ymin, xmax, ymax])
 
+    cv2.rectangle(frame, (430, 320), (255, 90), colorBox, 3)
     cv2.imshow('output', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

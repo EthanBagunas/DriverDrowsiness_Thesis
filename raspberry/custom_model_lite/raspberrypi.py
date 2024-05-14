@@ -70,6 +70,17 @@ def sendYawn(x):
         time.sleep(1)
         count+=1
         
+
+        
+def sendClosed():
+    ser.reset_input_buffer()
+    count=0
+    while count < 2:
+        ser.write(b"5\n")
+        #line = ser.readline().decode('utf-8').rstrip()
+        #print(line)
+        time.sleep(1)
+        count+=1
         
 
 
