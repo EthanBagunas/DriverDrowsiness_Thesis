@@ -148,9 +148,9 @@ while True:
     if faces:
         colorBox = (0, 255, 0)
         face = faces[0]
-        #for id, rid in zip(idList, RidList):
-            #cv2.circle(frame, face[id], 5, (color), cv2.FILLED)
-            #cv2.circle(frame, face[rid], 5, (Rcolor), cv2.FILLED)
+        for id, rid in zip(idList, RidList):
+            cv2.circle(frame, face[id], 5, (color), cv2.FILLED)
+            cv2.circle(frame, face[rid], 5, (Rcolor), cv2.FILLED)
 
         # left
         leftUp = face[159]
