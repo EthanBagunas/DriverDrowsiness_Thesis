@@ -13,7 +13,7 @@ import time
 import threading
 import serial
 
-ser = serial.Serial('COM4', 9600, timeout=1)
+#ser = serial.Serial('COM4', 9600, timeout=1)
 
 modelpath = 'detect.tflite'
 lblpath = 'labelmap.txt'
@@ -173,6 +173,8 @@ while True:
         #cv2.line(frame, rightleft, rightright, (0, 200, 0), 3)
 
         Lratio = (lengthVer / lengthHor) * 100
+        
+
         Rratio = (RlengthVer / RlengthHor) * 100
         ratioList.append(Lratio)
         RratioList.append(Rratio)
@@ -180,7 +182,8 @@ while True:
         if len(RratioList) > 3:
             RratioList.pop(0)
         RratioAvg = sum(RratioList) / len(RratioList)
-        if RratioAvg < 35 and Rcounter == 0:
+        
+        if RratioAvg < 30 and Rcounter == 0:
             RblinkCounter += 1
             Rcolor = (0, 200, 0)
             Rcounter = 1
