@@ -9,9 +9,10 @@ int val;
 int count=0;
 void setup() {
 
-  Serial.begin(115200);
-   while (!Serial);
+  Serial.begin(9600);
+  while (!Serial);
   delay (1000);
+  pinMode(LED_BUILTIN,OUTPUT);
 
   // start the CAN bus at 500 kbps
   if (!CAN.begin (500E3)) {
@@ -27,7 +28,7 @@ void setup() {
 void canSender(int& mcuid) {
   // send packet: id is 11 bits, packet can contain up to 8 bytes of data
   int id;
-  if (mcuid == 1) {
+  if (mcuid == 0) {
   id = 0x12;    
   Serial.print ("Sending packet ... ");
   
@@ -62,14 +63,25 @@ void canSender(int& mcuid) {
   }
   delay (1000);
 }
+
+
+void blink(int& wait) {
+  digitalWrite(LED_BUILTIN, HIGH);
+  // Wait for 1 second
+  delay(wait*1000);
+  // Turn the LED off
+  digitalWrite(LED_BUILTIN, LOW);
+  // Wait for 1 second
+  delay(wait*1000);
+}
 void loop() 
 {
   int data;
   if (Serial.available() > 0) {
     String rcv = Serial.readStringUntil('\n');
     Serial.print("Data Received: ");
-    Serial.println(rcv);
     data= rcv.toInt();
+    Serial.println(data);
     canSender(data);
   }     
 }
