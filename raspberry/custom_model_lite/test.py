@@ -1,3 +1,4 @@
+import serial
 import numpy as np
 import cv2
 import cvzone
@@ -11,9 +12,8 @@ from cvzone.PlotModule import LivePlot
 from cvzone.FaceMeshModule import FaceMeshDetector
 import time
 import threading
-import serial
 
-#ser = serial.Serial('COM4', 9600, timeout=1)
+#!ser = serial.Serial('/dev/ttyUSB0', 9600)
 
 modelpath = 'detect.tflite'
 lblpath = 'labelmap.txt'
@@ -45,6 +45,41 @@ detected_labels = {cls: False for cls in object_names}
 
 yawn_detected = False
 
+
+def sendSerial(x):
+    ser.reset_input_buffer()
+    count= 0
+    while count < 2:
+        if x == 1:
+            ser.write(b"1\n")
+        else:
+            ser.write(b"0\n")
+        line = ser.readline().decode('utf-8').rstrip()
+        print(line)
+        time.sleep(1)
+        count+=1
+
+def sendClose():
+    ser.reset_input_buffer()
+    count= 0
+    while count < 1:
+        ser.write(b"1\n")
+        line = ser.readline().decode('utf-8').rstrip()
+        print(line)
+        time.sleep(1)
+        count+=1
+
+def sendYawn():
+    ser.reset_input_buffer()
+    count= 0
+    while count < 1:
+        ser.write(b"0\n")
+        line = ser.readline().decode('utf-8').rstrip()
+        print(line)
+        time.sleep(1)
+        count+=1
+
+
 def count_seconds(seconds):
     global yawn_detected
     global yawn_start_time
@@ -58,39 +93,24 @@ def count_seconds(seconds):
         time.sleep(1)
         if not yawn_detected:
             yawn_duration = time.time() - yawn_start_time
-            print(f"Yawn duration: {yawn_duration} seconds")
+            print(f"mouth open duration: {yawn_duration} seconds")
             return
-    sendYawn()
+        
     print("Yawn Detected")
+    #!sendYawn()
+    #sendSerial(0)
     yawn_detected = False
 
 
 
 # Function to handle yawn detection
 
-def sendClose():
-    ser.reset_input_buffer()
-    count=0
-    while count < 2:
-        ser.write(b"1\n")
-        time.sleep(1)
-        count+=1
-
-
-def sendYawn():
-    ser.reset_input_buffer()
-    count=0
-    while count < 2:
-        ser.write(b"0\n")
-        time.sleep(1)
-        count+=1
-
 def handle_yawn_detection():
     global yawn_detected
 
     yawn_detected = True
     print("Starting countdown...")
-    count_seconds(3)  # Change the countdown time as needed
+    count_seconds(5)  # Change the countdown time as needed
 
     # Reset yawn detection state
     yawn_detected = False
@@ -104,7 +124,9 @@ colorBox = (0, 0, 255)
 
 
 
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Use DirectShow backend
+cap = cv2.VideoCapture(0)  # Use DirectShow backend
+
+
 
 #cap = cv2.VideoCapture('lexis.mp4')
 
@@ -129,7 +151,9 @@ closed_eye_timer = 0
 closed_eye_duration = 3  # in seconds
 eyes_closed = False
 
-
+no_face_timer=0
+no_face_threshold = 5
+no_face_warning_shown = False
 
 
 mask = cv2.imread('mask.png')
@@ -146,6 +170,8 @@ while True:
     imgRegion, faces = detector.findFaceMesh(imgRegion, draw=False)
 
     if faces:
+        no_face_timer = 0 
+        no_face_warning_shown = False
         colorBox = (0, 255, 0)
         face = faces[0]
         for id, rid in zip(idList, RidList):
@@ -159,8 +185,8 @@ while True:
         leftright = face[243]
         lengthVer, _ = detector.findDistance(leftUp, leftDown)
         lengthHor, _ = detector.findDistance(leftleft, leftright)
-        #cv2.line(frame, leftUp, leftDown, (0, 200, 0), 3)
-        #cv2.line(frame, leftleft, leftright, (0, 200, 0), 3)
+        cv2.line(frame, leftUp, leftDown, (0, 200, 0), 3)
+        cv2.line(frame, leftleft, leftright, (0, 200, 0), 3)
 
         # right
         rightUp = face[386]
@@ -169,12 +195,10 @@ while True:
         rightright = face[463]
         RlengthVer, _ = detector.findDistance(rightUp, rightDown)
         RlengthHor, _ = detector.findDistance(rightleft, rightright)
-        #cv2.line(frame, rightUp, rightDown, (0, 200, 0), 3)
-        #cv2.line(frame, rightleft, rightright, (0, 200, 0), 3)
+        cv2.line(frame, rightUp, rightDown, (0, 200, 0), 3)
+        cv2.line(frame, rightleft, rightright, (0, 200, 0), 3)
 
         Lratio = (lengthVer / lengthHor) * 100
-        
-
         Rratio = (RlengthVer / RlengthHor) * 100
         ratioList.append(Lratio)
         RratioList.append(Rratio)
@@ -182,8 +206,7 @@ while True:
         if len(RratioList) > 3:
             RratioList.pop(0)
         RratioAvg = sum(RratioList) / len(RratioList)
-        
-        if RratioAvg < 30 and Rcounter == 0:
+        if RratioAvg < 35 and Rcounter == 0:
             RblinkCounter += 1
             Rcolor = (0, 200, 0)
             Rcounter = 1
@@ -209,20 +232,30 @@ while True:
 
         if ratioAvg < 35 and RratioAvg < 35:
             closed_eye_timer += 1
-            if closed_eye_timer >= closed_eye_duration * 25 and not eyes_closed:  # 25 frames per second
-                sendClose()
+            if closed_eye_timer >= closed_eye_duration *  10 and not eyes_closed:  # 25 frames per second
                 print("Both eyes closed")
+                #!sendClose()
+                #sendSerial(1)
                 eyes_closed = True
         else:
             closed_eye_timer = 0
             eyes_closed = False
 
     else:
+     no_face_timer+=1
+     if no_face_timer>=no_face_threshold* 5 and not no_face_warning_shown:
+         print("No face detected for too long ")
+         no_face_warning_shown = True
+    
+         
+        
+
      colorBox = (0,0,255)
+
 
     #TensorFlow
     image_rgb = cv2.cvtColor(imgRegion, cv2.COLOR_BGR2RGB)
-    imH, imW, _ = frame.shape
+    imH, imW, _ = imgRegion.shape
     image_resized = cv2.resize(image_rgb, (width, height))
     input_data = np.expand_dims(image_resized, axis=0)
     # Normalize pixel values if using a floating model (i.e. if model is non-quantized)
@@ -274,7 +307,7 @@ while True:
                         2)  # Draw label text
             detections.append([object_name, scores[i], xmin, ymin, xmax, ymax])
 
-    cv2.rectangle(frame, (430, 320), (255, 90), colorBox, 3)
+    cv2.rectangle(frame, (500, 410), (150, 70), colorBox, 3)
     cv2.imshow('output', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
