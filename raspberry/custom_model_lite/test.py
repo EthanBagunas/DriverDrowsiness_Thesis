@@ -13,7 +13,7 @@ from cvzone.FaceMeshModule import FaceMeshDetector
 import time
 import threading
 
-#!ser = serial.Serial('/dev/ttyUSB0', 9600)
+!ser = serial.Serial('/dev/ttyUSB0', 9600)
 
 modelpath = 'detect.tflite'
 lblpath = 'labelmap.txt'
@@ -97,7 +97,7 @@ def count_seconds(seconds):
             return
         
     print("Yawn Detected")
-    #!sendYawn()
+    sendYawn()
     #sendSerial(0)
     yawn_detected = False
 
@@ -234,7 +234,7 @@ while True:
             closed_eye_timer += 1
             if closed_eye_timer >= closed_eye_duration *  10 and not eyes_closed:  # 25 frames per second
                 print("Both eyes closed")
-                #!sendClose()
+                sendClose()
                 #sendSerial(1)
                 eyes_closed = True
         else:
